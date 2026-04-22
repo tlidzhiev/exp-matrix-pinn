@@ -1,0 +1,26 @@
+[project]
+name = "exp-matrix-pinn"
+version = "0.1.0"
+description = "Approximation of Matrix Exponential with Physics Informed Neural Networks."
+readme = "README.md"
+requires-python = "==3.12.11"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pre-commit==4.6.0",
+    "ruff==0.15.11",
+    "ty==0.0.32",
+]
+
+[tool.uv]
+package = true
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.ruff]
+line-length = 100
