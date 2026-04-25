@@ -12,7 +12,7 @@ class PINN(BaseModel):
         n: int,
         k: int,
         t_domain: tuple[float, float],
-        solver_name: Literal['mlp'],
+        solver_name: Literal['mlp', 'resnet', 'film_mlp'],
         solver_params: dict[str, Any],
     ) -> None:
         super().__init__()
