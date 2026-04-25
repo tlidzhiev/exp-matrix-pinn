@@ -1,0 +1,10 @@
+_target_: src.model.pinn.PINN
+n: ${dataset.n}
+k: ${dataset.k}
+t_domain: ${dataset.t_domain}
+solver_name: mlp
+solver_params:
+  hidden_dim: 32
+  num_blocks: 3
+  activation: relu
+  init_mode: normal

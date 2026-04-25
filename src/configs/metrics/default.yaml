@@ -1,0 +1,12 @@
+device: ${trainer.device}
+train: [] # use empty list instead of None / null
+inference:
+  - _target_: src.metrics.relative_l2_error.RelativeL2ErrorMetric
+    name: RelativeL2ErrorMetric
+    device: ${metrics.device}
+  - _target_: src.metrics.relative_norm_drift.RelativeNormDriftMetric
+    name: RelativeNormDriftMetric
+    device: ${metrics.device}
+  - _target_: src.metrics.cosine_similarity.CosineSimilarityMetric
+    name: CosineSimilarityMetric
+    device: ${metrics.device}
