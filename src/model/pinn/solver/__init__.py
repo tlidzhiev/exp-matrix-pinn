@@ -16,4 +16,6 @@ def get_solver(name: Literal['mlp', 'resnet', 'film_mlp'], params: dict[str, Any
         case 'film_mlp':
             return FiLMMLP(**params)
         case _:
-            raise ValueError(f"Unknown model name: {name}. Supported models: 'mlp', 'resnet'.")
+            raise ValueError(
+                f"Unknown model name: {name}. Supported models: 'mlp', 'resnet', 'film_mlp'."
+            )

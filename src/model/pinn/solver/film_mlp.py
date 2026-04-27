@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 
 from ...utils import get_activation, initialize_weights
+from .fourier import FourierFeatures
 
 
 class FiLMLayer(nn.Module):
@@ -25,25 +26,33 @@ class FiLMMLP(nn.Module):
     def __init__(
         self,
         input_dim: int,
-        main_dim: int,
         hidden_dim: int,
         num_blocks: int,
         output_dim: int,
-        activation: Literal['relu', 'tanh', 'silu', 'gelu'] = 'tanh',
+        activation: Literal['relu', 'tanh', 'silu', 'gelu'] = 'relu',
         init_mode: Literal['normal', 'uniform'] | None = 'normal',
+        fourier_features: int | None = None,
+        fourier_sigma: float = 1.0,
     ) -> None:
         super().__init__()
-        self.main_dim = main_dim
-        cond_dim = input_dim - main_dim
+
+        if fourier_features is not None:
+            self.fourier = FourierFeatures(1, fourier_features, fourier_sigma)
+            effective_input = self.fourier.out_dim
+        else:
+            self.fourier = None
+            effective_input = 1
 
         self.act = get_activation(activation)
-        self.input_proj = nn.Sequential(nn.Linear(main_dim, hidden_dim), self.act)
+        self.input_proj = nn.Sequential(
+            nn.Linear(effective_input, hidden_dim), get_activation(activation)
+        )
 
         self.cond_mlp = nn.Sequential(
-            nn.Linear(cond_dim, hidden_dim),
-            self.act,
+            nn.Linear(input_dim - 1, hidden_dim),
+            get_activation(activation),
             nn.Linear(hidden_dim, hidden_dim),
-            self.act,
+            get_activation(activation),
         )
         self.blocks = nn.ModuleList([nn.Linear(hidden_dim, hidden_dim) for _ in range(num_blocks)])
         self.film_layers = nn.ModuleList(
@@ -58,11 +67,12 @@ class FiLMMLP(nn.Module):
             initialize_weights(self.output_proj, activation, init_mode)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        t = inputs[..., : self.main_dim]
-        raw_cond = inputs[..., self.main_dim :]
+        t = inputs[..., :1]
+        raw_cond = inputs[..., 1:]
         cond_embedding = self.cond_mlp(raw_cond)
 
-        h = self.input_proj(t)
+        h = self.fourier(t) if self.fourier is not None else t
+        h = self.input_proj(h)
         for block, film in zip(self.blocks, self.film_layers):
             h = self.act(film(block(h), cond_embedding))
         return self.output_proj(h)
