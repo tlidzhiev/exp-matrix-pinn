@@ -4,11 +4,11 @@ hydra:
 
 defaults:
   - _self_
-  - dataset: pinn
+  - dataset: point
   - dataloader: default
   - transforms: default
   - model: mlp
-  - criterion: pinn
+  - criterion: ${dataset}
   - metrics: default
   - optimizer: default
   - lr_scheduler: default

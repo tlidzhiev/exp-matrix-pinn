@@ -80,4 +80,54 @@ class PointBatchPINNLoss(BaseLoss):
         return result
 
     def extra_repr(self) -> str:
-        return f'n={self.n}, k={self.k}, lambda_pde={self.lambda_pde}, lambda_ic={self.lambda_ic})'
+        return f'n={self.n}, k={self.k}, lambda_pde={self.lambda_pde}, lambda_ic={self.lambda_ic}'
+
+
+class TrajectoryBatchPINNLoss(PointBatchPINNLoss):
+    def __init__(
+        self,
+        *args,
+        num_chunks: int | None = None,
+        eps_causal: float = 1.0,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.num_chunks = num_chunks
+        self.eps_causal = eps_causal
+        if num_chunks is not None:
+            self.loss_weight_names = self.loss_weight_names
+
+    def _loss_pde(self, t: torch.Tensor, u0: torch.Tensor, x: torch.Tensor, model: nn.Module):
+        B, T = x.shape[0], t.shape[0]
+
+        t_sorted, _ = t.squeeze(1).sort()
+        t_sorted = t_sorted.unsqueeze(1)
+
+        t_exp = t_sorted.unsqueeze(0).expand(B, T, 1).reshape(B * T, 1)
+        x_exp = x.unsqueeze(1).expand(B, T, -1).reshape(B * T, -1)
+        u0_exp = u0.unsqueeze(1).expand(B, T, -1).reshape(B * T, -1)
+
+        with fwAD.dual_level():
+            dual_t = fwAD.make_dual(t_exp, torch.ones_like(t_exp))
+            out_dual = model(t=dual_t, x=x_exp, u0=u0_exp)['ut']
+            ut_pred, dudt = fwAD.unpack_dual(out_dual)
+
+        xu = self._apply_matrix(x_exp, ut_pred)
+        pde_term = (dudt + xu).reshape(B, T, -1)
+
+        if self.num_chunks is None:
+            return (pde_term**2).mean()
+
+        C = self.num_chunks
+        pde_term = pde_term.reshape(B, C, T // C, -1)
+
+        L_bc = (pde_term**2).mean(dim=[2, 3])
+        cumsum_prev = torch.cat([t.new_zeros(B, 1), L_bc[:, :-1].cumsum(dim=1)], dim=1).detach()
+        weights = torch.exp(-self.eps_causal * cumsum_prev)
+        return (weights * L_bc).mean(dim=1).mean()
+
+    def extra_repr(self) -> str:
+        base = super().extra_repr()
+        if self.num_chunks is None:
+            return base
+        return f'{base}, num_chunks={self.num_chunks}, eps_causal={self.eps_causal}'

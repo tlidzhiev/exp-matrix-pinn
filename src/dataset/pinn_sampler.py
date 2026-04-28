@@ -104,7 +104,7 @@ class TrajectoryBatchSampler(_BasePINNSampler):
     u0  : (batch_size, n)
     """
 
-    def __init__(self, *args, num_time_points: int, **kwargs) -> None:
+    def __init__(self, *args, num_time_points: int = 100, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.num_time_points = num_time_points
 

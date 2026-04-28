@@ -4,9 +4,10 @@ t_domain: [0, 1]
 trunc_bounds: [-2.0, 2.0]
 
 train:
-  _target_: src.dataset.pinn_sampler.PINNBatchSampler
+  _target_: src.dataset.pinn_sampler.TrajectoryBatchSampler
   n: ${dataset.n}
   k: ${dataset.k}
+  num_time_points: 100
   batch_size: 32
   t_domain: ${dataset.t_domain}
   trunc_bounds: ${dataset.trunc_bounds}
@@ -18,6 +19,7 @@ test:
   n: ${dataset.n}
   k: ${dataset.k}
   split: test
+  num_time_points: 100
   t_domain: ${dataset.t_domain}
   trunc_bounds: ${dataset.trunc_bounds}
   seed: 24

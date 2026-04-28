@@ -1,4 +1,4 @@
-_target_: src.loss.pinn.PINNLoss
+_target_: src.loss.pinn.PointBatchPINNLoss
 n: ${dataset.n}
 k: ${dataset.k}
 lambda_pde: 1.0
