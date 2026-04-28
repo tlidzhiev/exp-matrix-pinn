@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from .base import BaseLoss
 
 
-class PINNLoss(BaseLoss):
+class PointBatchPINNLoss(BaseLoss):
     def __init__(
         self,
         n: int,
@@ -15,6 +15,7 @@ class PINNLoss(BaseLoss):
         lambda_ic: float = 1.0,
     ) -> None:
         super().__init__()
+        self.n, self.k = n, k
         self.lambda_pde = lambda_pde
         self.lambda_ic = lambda_ic
         self.loss_names: list[str] = ['loss', 'loss_ic', 'loss_pde']
@@ -78,5 +79,5 @@ class PINNLoss(BaseLoss):
         result.scatter_add_(1, cols, -x * u[:, self.rows])  # ty:ignore[invalid-argument-type]
         return result
 
-    def __repr__(self) -> str:
-        return f'PINNLoss(lambda_pde={self.lambda_pde}, lambda_ic={self.lambda_ic})'
+    def extra_repr(self) -> str:
+        return f'n={self.n}, k={self.k}, lambda_pde={self.lambda_pde}, lambda_ic={self.lambda_ic})'
