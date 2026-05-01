@@ -19,7 +19,10 @@ def _sample_x_u0(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     trunc_lower, trunc_upper = trunc_bounds
     vals = torch.nn.init.trunc_normal_(
-        torch.empty(batch_size, num_vals), a=trunc_lower, b=trunc_upper, generator=rng
+        torch.empty(batch_size, num_vals, dtype=torch.float32),
+        a=trunc_lower,
+        b=trunc_upper,
+        generator=rng,
     )
     u0 = torch.nn.init.trunc_normal_(
         torch.empty(batch_size, n), a=trunc_lower, b=trunc_upper, generator=rng
@@ -83,8 +86,10 @@ class PointBatchSampler(_BasePINNSampler):
         t_min, t_max = self.t_domain
         num_vals = self.rows.shape[0]
 
-        t0 = torch.full((self.batch_size, 1), t_min)
-        t = torch.empty(self.batch_size, 1).uniform_(t_min, t_max, generator=rng)
+        t0 = torch.full((self.batch_size, 1), t_min, dtype=torch.float32)
+        t = torch.empty(self.batch_size, 1, dtype=torch.float32).uniform_(
+            t_min, t_max, generator=rng
+        )
         vals, u0 = _sample_x_u0(self.batch_size, self.n, num_vals, self.trunc_bounds, rng)
         return {'t0': t0, 'u0': u0, 't': t, 'x': vals}
 
@@ -112,7 +117,9 @@ class TrajectoryBatchSampler(_BasePINNSampler):
         t_min, t_max = self.t_domain
         num_vals = self.rows.shape[0]
 
-        t0 = torch.full((self.batch_size, 1), t_min)
-        t = torch.empty(self.num_time_points, 1).uniform_(t_min, t_max, generator=rng)
+        t0 = torch.full((self.batch_size, 1), t_min, dtype=torch.float32)
+        t = torch.empty(self.num_time_points, 1, dtype=torch.float32).uniform_(
+            t_min, t_max, generator=rng
+        )
         vals, u0 = _sample_x_u0(self.batch_size, self.n, num_vals, self.trunc_bounds, rng)
         return {'t0': t0, 'u0': u0, 't': t, 'x': vals}

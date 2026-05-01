@@ -1,6 +1,6 @@
 n: 10
 k: 1
-t_domain: [0, 1]
+t_domain: [0.0, 1.0]
 trunc_bounds: [-2.0, 2.0]
 
 train:
