@@ -85,8 +85,14 @@ class SplitResNet(nn.Module):
             self.fourier = None
             t_dim = 1
 
-        self.t_encoder = nn.Linear(t_dim, hidden_dim)
-        self.cond_encoder = nn.Linear(input_dim - 1, hidden_dim)
+        self.t_encoder = nn.Sequential(
+            nn.Linear(t_dim, hidden_dim),
+            get_activation(activation),
+        )
+        self.cond_encoder = nn.Sequential(
+            nn.Linear(input_dim - 1, hidden_dim),
+            get_activation(activation),
+        )
         self.input_proj = nn.Linear(2 * hidden_dim, hidden_dim)
         self.blocks = nn.Sequential(*[ResBlock(hidden_dim, activation) for _ in range(num_blocks)])
         self.output_proj = nn.Sequential(

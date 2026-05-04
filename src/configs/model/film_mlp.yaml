@@ -4,7 +4,6 @@ k: ${dataset.k}
 t_domain: ${dataset.t_domain}
 solver_name: film_mlp
 solver_params:
-  main_dim: 1 # only t_norm goes through main stream; (x_features, u0) form conditioning
   hidden_dim: 32
   num_blocks: 3
   activation: relu
