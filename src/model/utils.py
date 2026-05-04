@@ -115,20 +115,14 @@ def initialize_weights(
         )
 
     for m in module.modules():
-        if isinstance(m, nn.Linear):
+        if isinstance(m, (nn.Linear, nn.Conv1d)):
             if act_name == 'tanh':
                 gain = nn.init.calculate_gain('tanh')
                 init_fn = nn.init.xavier_normal_ if mode == 'normal' else nn.init.xavier_uniform_
-                print(
-                    f'Initialization of {m} model with Xavier {mode} and gain={gain:.2f} for tanh activation...'
-                )
                 init_fn(m.weight, gain=gain)
             else:
                 nonlin = 'leaky_relu' if act_name == 'leaky_relu' else 'relu'
                 init_fn = nn.init.kaiming_normal_ if mode == 'normal' else nn.init.kaiming_uniform_
-                print(
-                    f'Initialization of {m} model with mode={mode} and a={param} and nonlinearity=relu...'
-                )
                 init_fn(m.weight, a=param, nonlinearity=nonlin)
             if m.bias is not None:
                 nn.init.zeros_(m.bias)

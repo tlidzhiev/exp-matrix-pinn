@@ -3,7 +3,7 @@ from typing import Literal
 import torch
 import torch.nn as nn
 
-from ...utils import get_activation
+from ...utils import get_activation, initialize_weights
 from .fourier import FourierFeatures
 from .residual import ResBlock, TimeConditionedResBlock
 
@@ -51,6 +51,9 @@ class ResNet(nn.Module):
             get_activation(activation),
             nn.Conv1d(hidden_dim, 1, kernel_size=1),
         )
+
+        if init_mode is not None:
+            initialize_weights(self, activation, init_mode)
 
     def forward(self, t: torch.Tensor, x_matrix: torch.Tensor) -> torch.Tensor:
         t_enc = self.fourier(t) if self.fourier is not None else t
@@ -107,6 +110,9 @@ class ResNetTC(nn.Module):
             get_activation(activation),
             nn.Conv1d(hidden_dim, 1, kernel_size=1),
         )
+
+        if init_mode is not None:
+            initialize_weights(self, activation, init_mode)
 
     def forward(self, t: torch.Tensor, x_matrix: torch.Tensor) -> torch.Tensor:
         t_enc = self.fourier(t) if self.fourier is not None else t
