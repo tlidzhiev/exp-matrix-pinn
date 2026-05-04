@@ -259,9 +259,7 @@ class BaseTrainer:
             if self.ema is not None:
                 self.ema.update(self.model)
 
-            grad_norm = self._get_grad_norm()
-            pbar.set_postfix({'loss': batch['loss'].item(), 'grad_norm': grad_norm})
-            self.train_metric_tracker.update('grad_norm', grad_norm)
+            self.train_metric_tracker.update('grad_norm', self._get_grad_norm())
 
             # log current results
             if batch_idx > 0 and batch_idx % self.log_step == 0:

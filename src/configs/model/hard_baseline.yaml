@@ -1,8 +1,9 @@
-_target_: src.model.pinn.PINN
+_target_: src.model.pinn.HardPINN
 n: ${dataset.n}
 k: ${dataset.k}
 t_domain: ${dataset.t_domain}
-solver_name: resnet
+norm_preserving: false
+solver_name: baseline
 solver_params:
   hidden_dim: 32
   num_xu_blocks: 1

@@ -3,111 +3,116 @@ from typing import Literal
 import torch
 import torch.nn as nn
 
-from ...utils import get_activation, initialize_weights
+from ...utils import get_activation
 from .fourier import FourierFeatures
-
-
-class ResBlock(nn.Module):
-    def __init__(
-        self,
-        hidden_dim: int,
-        activation: Literal['relu', 'tanh', 'silu', 'gelu'] = 'relu',
-    ) -> None:
-        super().__init__()
-        self.block = nn.Sequential(
-            get_activation(activation),
-            nn.Linear(hidden_dim, hidden_dim),
-            get_activation(activation),
-            nn.Linear(hidden_dim, hidden_dim),
-        )
-
-    def forward(self, h: torch.Tensor) -> torch.Tensor:
-        return h + self.block(h)
+from .residual import ResBlock, TimeConditionedResBlock
 
 
 class ResNet(nn.Module):
     def __init__(
         self,
-        input_dim: int,
+        n: int,
+        k: int,
         hidden_dim: int,
-        num_blocks: int,
-        output_dim: int,
-        activation: Literal['relu', 'tanh', 'silu', 'gelu'] = 'tanh',
-        init_mode: Literal['normal', 'uniform'] | None = 'normal',
+        num_xu_blocks: int,
+        num_fusion_blocks: int,
+        activation: Literal['relu', 'tanh', 'silu', 'gelu'] = 'silu',
         fourier_features: int | None = None,
         fourier_sigma: float = 1.0,
-    ) -> None:
-        super().__init__()
-        if fourier_features is not None:
-            self.fourier = FourierFeatures(1, fourier_features, fourier_sigma)
-            t_dim = self.fourier.out_dim
-        else:
-            self.fourier = None
-            t_dim = 1
-
-        self.input_proj = nn.Linear(t_dim + (input_dim - 1), hidden_dim)
-        self.blocks = nn.Sequential(*[ResBlock(hidden_dim, activation) for _ in range(num_blocks)])
-        self.output_proj = nn.Sequential(
-            get_activation(activation),
-            nn.Linear(hidden_dim, output_dim),
-        )
-
-        if init_mode is not None:
-            initialize_weights(self, activation, init_mode)
-
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        t = inputs[..., :1]
-        cond = inputs[..., 1:]
-        if self.fourier is not None:
-            t = self.fourier(t)
-        h = self.input_proj(torch.column_stack([t, cond]))
-        h = self.blocks(h)
-        return self.output_proj(h)
-
-
-class SplitResNet(nn.Module):
-    def __init__(
-        self,
-        input_dim: int,
-        hidden_dim: int,
-        num_blocks: int,
-        output_dim: int,
-        activation: Literal['relu', 'tanh', 'silu', 'gelu'] = 'tanh',
+        kernel_size: int = 3,
         init_mode: Literal['normal', 'uniform'] | None = 'normal',
-        fourier_features: int | None = None,
-        fourier_sigma: float = 1.0,
     ) -> None:
         super().__init__()
+        self.n = n
+
         if fourier_features is not None:
             self.fourier = FourierFeatures(1, fourier_features, fourier_sigma)
-            t_dim = self.fourier.out_dim
+            t_input_dim = self.fourier.out_dim
         else:
             self.fourier = None
-            t_dim = 1
+            t_input_dim = 1
 
         self.t_encoder = nn.Sequential(
-            nn.Linear(t_dim, hidden_dim),
+            nn.Linear(t_input_dim, hidden_dim),
             get_activation(activation),
-        )
-        self.cond_encoder = nn.Sequential(
-            nn.Linear(input_dim - 1, hidden_dim),
+            nn.Linear(hidden_dim, hidden_dim),
             get_activation(activation),
+            nn.Linear(hidden_dim, hidden_dim),
         )
-        self.input_proj = nn.Linear(2 * hidden_dim, hidden_dim)
-        self.blocks = nn.Sequential(*[ResBlock(hidden_dim, activation) for _ in range(num_blocks)])
+        self.xu_encoder = nn.Sequential(
+            nn.Conv1d(k + 1, hidden_dim, kernel_size=1),
+            *[ResBlock(hidden_dim, kernel_size, activation) for _ in range(num_xu_blocks)],
+        )
+        self.fusion = nn.Sequential(
+            nn.Conv1d(hidden_dim * 2, hidden_dim, kernel_size=1),
+            *[ResBlock(hidden_dim, kernel_size, activation) for _ in range(num_fusion_blocks)],
+        )
         self.output_proj = nn.Sequential(
             get_activation(activation),
-            nn.Linear(hidden_dim, output_dim),
+            nn.Conv1d(hidden_dim, 1, kernel_size=1),
         )
 
-        if init_mode is not None:
-            initialize_weights(self, activation, init_mode)
+    def forward(self, t: torch.Tensor, x_matrix: torch.Tensor) -> torch.Tensor:
+        t_enc = self.fourier(t) if self.fourier is not None else t
+        t_h = self.t_encoder(t_enc)
+        t_h_exp = t_h.unsqueeze(-1).expand(-1, -1, self.n)
+        xu_h = self.xu_encoder(x_matrix)
+        h = torch.cat([xu_h, t_h_exp], dim=1)
+        h = self.fusion(h)
+        return self.output_proj(h).squeeze(1)
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        t = inputs[..., :1]
-        cond = inputs[..., 1:]
-        if self.fourier is not None:
-            t = self.fourier(t)
-        h = self.input_proj(torch.column_stack([self.t_encoder(t), self.cond_encoder(cond)]))
-        h = self.blocks(h)
-        return self.output_proj(h)
+
+class ResNetTC(nn.Module):
+    def __init__(
+        self,
+        n: int,
+        k: int,
+        hidden_dim: int,
+        num_xu_blocks: int,
+        num_fusion_blocks: int,
+        activation: Literal['relu', 'tanh', 'silu', 'gelu'] = 'silu',
+        fourier_features: int | None = None,
+        fourier_sigma: float = 1.0,
+        kernel_size: int = 3,
+        init_mode: Literal['normal', 'uniform'] | None = 'normal',
+    ) -> None:
+        super().__init__()
+        self.n = n
+
+        if fourier_features is not None:
+            self.fourier = FourierFeatures(1, fourier_features, fourier_sigma)
+            t_input_dim = self.fourier.out_dim
+        else:
+            self.fourier = None
+            t_input_dim = 1
+
+        self.t_encoder = nn.Sequential(
+            nn.Linear(t_input_dim, hidden_dim),
+            get_activation(activation),
+            nn.Linear(hidden_dim, hidden_dim),
+            get_activation(activation),
+            nn.Linear(hidden_dim, hidden_dim),
+        )
+        self.xu_encoder = nn.Sequential(
+            nn.Conv1d(k + 1, hidden_dim, kernel_size=1),
+            *[ResBlock(hidden_dim, kernel_size, activation) for _ in range(num_xu_blocks)],
+        )
+        self.fusion = nn.ModuleList(
+            [
+                TimeConditionedResBlock(hidden_dim, kernel_size, activation)
+                for _ in range(num_fusion_blocks)
+            ]
+        )
+        self.output_proj = nn.Sequential(
+            get_activation(activation),
+            nn.Conv1d(hidden_dim, 1, kernel_size=1),
+        )
+
+    def forward(self, t: torch.Tensor, x_matrix: torch.Tensor) -> torch.Tensor:
+        t_enc = self.fourier(t) if self.fourier is not None else t
+        t_h = self.t_encoder(t_enc)
+
+        xu_h = self.xu_encoder(x_matrix)
+        for block in self.fusion:
+            xu_h = block(xu_h, t_h)
+        return self.output_proj(xu_h).squeeze(1)

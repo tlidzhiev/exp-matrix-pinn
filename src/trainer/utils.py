@@ -186,7 +186,7 @@ def resume_checkpoint(
     """
     path = str(path)
     checkpoint = load_checkpoint(path, device)
-    start_epoch: int = checkpoint['epoch'] + 1
+    start_epoch = checkpoint['epoch'] + 1
     mnt_best = cast(float, checkpoint.get('monitor_best'))
 
     # load architecture params from checkpoint.

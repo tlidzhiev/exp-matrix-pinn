@@ -1,11 +1,12 @@
-_target_: src.model.pinn.Conv1DPINN
+_target_: src.model.pinn.PINN
 n: ${dataset.n}
 k: ${dataset.k}
 t_domain: ${dataset.t_domain}
+solver_name: baseline
 solver_params:
-  hidden_channels: 64
-  num_conv_layers: 3
-  hidden_dim: 64
+  hidden_dim: 32
+  num_xu_blocks: 1
+  num_fusion_blocks: 3
   kernel_size: 3
   activation: silu
   init_mode: normal

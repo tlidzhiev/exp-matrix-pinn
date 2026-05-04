@@ -6,6 +6,7 @@ import torch
 from tqdm.auto import tqdm
 
 from src.dataset.base import BaseDataset
+from src.dataset.pinn_sampler import _sparsity_pattern, _vals_to_matrix
 from src.utils.io import get_root, read_json, write_json
 
 
@@ -89,30 +90,13 @@ class SparseExpMatrixDataset(BaseDataset):
         )
 
     def _create_index(self, data_path: Path) -> list[dict[str, Any]]:
-        """
-        Create index for the dataset.
-
-        The function generates ODE samples and utilizes it to get
-        information dict for each element of the dataset.
-
-        Parameters
-        ----------
-        data_path : Path
-            Path to save dataset files.
-
-        Returns
-        -------
-        list[dict[str, Any]]
-            List containing dict for each element of the dataset.
-            The dict has required metadata information, such as label and object path.
-        """
         data_path.mkdir(parents=True, exist_ok=True)
 
         rng = torch.Generator().manual_seed(self.seed)
         t_min, t_max = self.t_domain
         trunc_lower, trunc_upper = self.trunc_bounds
         t = torch.linspace(t_min, t_max, self.num_time_points)
-        rows, cols = self._sparsity_pattern(self.n, self.k)
+        rows, cols = _sparsity_pattern(self.n, self.k)
 
         index = []
         print(
@@ -122,17 +106,17 @@ class SparseExpMatrixDataset(BaseDataset):
             vals = torch.nn.init.trunc_normal_(
                 torch.empty(rows.shape[0]), a=trunc_lower, b=trunc_upper, generator=rng
             )
-            X = self._vals_to_matrix(vals, rows, cols, self.n)
-            torch.empty(self.n)
             u0 = torch.nn.init.trunc_normal_(
                 torch.empty(self.n), a=trunc_lower, b=trunc_upper, generator=rng
             )
 
-            ut = torch.linalg.matrix_exp(-t.reshape(-1, 1, 1) * X.reshape(1, self.n, self.n)) @ u0
+            X_dense = self._build_dense(vals, rows, cols, self.n)
+            ut = torch.linalg.matrix_exp(-t.reshape(-1, 1, 1) * X_dense) @ u0
+
+            x = _vals_to_matrix(vals.unsqueeze(0), self.n, self.k, rows, cols).squeeze(0)  # (k, n)
 
             save_path = data_path / f'{i:06d}.safetensors'
-            safetensors.torch.save_file({'u0': u0, 'ut': ut, 't': t, 'x': vals}, save_path)
-
+            safetensors.torch.save_file({'u0': u0, 'ut': ut, 't': t, 'x': x}, save_path)
             index.append({'path': str(save_path)})
 
         write_json(index, str(data_path / 'index.json'))
@@ -140,17 +124,10 @@ class SparseExpMatrixDataset(BaseDataset):
         return index
 
     @staticmethod
-    def _sparsity_pattern(n: int, k: int) -> tuple[torch.Tensor, torch.Tensor]:
-        """Return (rows, cols) index arrays for the upper-triangle diagonals 1..k."""
-        rows, cols = torch.triu_indices(n, n, offset=1)
-        mask = (cols - rows) <= k
-        return rows[mask], cols[mask]
-
-    @staticmethod
-    def _vals_to_matrix(
+    def _build_dense(
         vals: torch.Tensor, rows: torch.Tensor, cols: torch.Tensor, n: int
     ) -> torch.Tensor:
-        """Reconstruct a dense skew-symmetric matrix from upper-triangle values."""
+        """Reconstruct a dense skew-symmetric (n, n) matrix from upper-triangle values."""
         X = torch.zeros(n, n)
         X[rows, cols] = vals
         X[cols, rows] = -vals

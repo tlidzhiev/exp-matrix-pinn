@@ -21,4 +21,4 @@ class FourierFeatures(nn.Module):
         return torch.cat([torch.cos(proj), torch.sin(proj)], dim=-1)
 
     def extra_repr(self) -> str:
-        return f'out_dim={self.out_dim}, sigma={self.sigma}'
+        return f'in_features={self.input_dim}, out_features={self.out_dim}, sigma={self.sigma}'

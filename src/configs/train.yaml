@@ -7,8 +7,8 @@ defaults:
   - dataset: point
   - dataloader: default
   - transforms: default
-  - model: mlp
-  - criterion: ${dataset}
+  - model: baseline
+  - criterion: point
   - metrics: default
   - optimizer: default
   - lr_scheduler: default

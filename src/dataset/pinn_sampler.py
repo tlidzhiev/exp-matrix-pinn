@@ -10,6 +10,26 @@ def _sparsity_pattern(n: int, k: int) -> tuple[torch.Tensor, torch.Tensor]:
     return rows[mask], cols[mask]
 
 
+def _vals_to_matrix(
+    vals: torch.Tensor,
+    n: int,
+    k: int,
+    rows: torch.Tensor,
+    cols: torch.Tensor,
+) -> torch.Tensor:
+    """
+    Convert sparse vals (B, num_vals) to padded diagonal matrix (B, k, n).
+
+    Each of the k superdiagonals occupies one channel, zero-padded to length n.
+    """
+    B = vals.shape[0]
+    x_matrix = torch.zeros(B, k, n, dtype=vals.dtype, device=vals.device)
+    diag_idx = cols - rows - 1
+    pos_idx = rows
+    x_matrix[:, diag_idx, pos_idx] = vals
+    return x_matrix
+
+
 def _sample_x_u0(
     batch_size: int,
     n: int,
@@ -76,9 +96,9 @@ class PointBatchSampler(_BasePINNSampler):
 
     Batch tensors
     -------------
-    t0  : (batch_size, 1)        — t_min for each point
-    t   : (batch_size, 1)        — random collocation time
-    x   : (batch_size, num_vals)
+    t0  : (batch_size, 1)
+    t   : (batch_size, 1)
+    x   : (batch_size, k, n)   padded diagonal matrix
     u0  : (batch_size, n)
     """
 
@@ -91,7 +111,8 @@ class PointBatchSampler(_BasePINNSampler):
             t_min, t_max, generator=rng
         )
         vals, u0 = _sample_x_u0(self.batch_size, self.n, num_vals, self.trunc_bounds, rng)
-        return {'t0': t0, 'u0': u0, 't': t, 'x': vals}
+        x = _vals_to_matrix(vals, self.n, self.k, self.rows, self.cols)
+        return {'t0': t0, 'u0': u0, 't': t, 'x': x}
 
 
 class TrajectoryBatchSampler(_BasePINNSampler):
@@ -103,9 +124,9 @@ class TrajectoryBatchSampler(_BasePINNSampler):
 
     Batch tensors
     -------------
-    t0  : (batch_size, 1)          — t_min for each trajectory
-    t   : (num_time_points, 1)     — uniform random time points in [t_min, t_max]
-    x   : (batch_size, num_vals)
+    t0  : (batch_size, 1)
+    t   : (num_time_points, 1)
+    x   : (batch_size, k, n)   padded diagonal matrix
     u0  : (batch_size, n)
     """
 
@@ -122,4 +143,5 @@ class TrajectoryBatchSampler(_BasePINNSampler):
             t_min, t_max, generator=rng
         )
         vals, u0 = _sample_x_u0(self.batch_size, self.n, num_vals, self.trunc_bounds, rng)
-        return {'t0': t0, 'u0': u0, 't': t, 'x': vals}
+        x = _vals_to_matrix(vals, self.n, self.k, self.rows, self.cols)
+        return {'t0': t0, 'u0': u0, 't': t, 'x': x}
