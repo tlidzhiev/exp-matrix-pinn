@@ -1,5 +1,4 @@
 import torch
-import torch.autograd.forward_ad as fwAD
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -62,13 +61,12 @@ class BasePINNLoss(BaseLoss):
         u0_pred = model(t=t0, x=x, u0=u0)['ut']
         return F.mse_loss(u0_pred, u0)
 
-    def _pde_residual(
-        self, t: torch.Tensor, u0: torch.Tensor, x: torch.Tensor, model: nn.Module
-    ) -> torch.Tensor:
-        with fwAD.dual_level():
-            dual_t = fwAD.make_dual(t, torch.ones_like(t))
-            out_dual = model(t=dual_t, x=x, u0=u0)['ut']
-            ut_pred, dudt = fwAD.unpack_dual(out_dual)
+    def _pde_residual(self, t, u0, x, model):
+        eps = 1e-3
+        ut_plus = model(t=t + eps, x=x, u0=u0)['ut']
+        ut_minus = model(t=t - eps, x=x, u0=u0)['ut']
+        dudt = (ut_plus - ut_minus) / (2 * eps)
+        ut_pred = model(t=t, x=x, u0=u0)['ut']
         return dudt + self._apply_matrix(x, ut_pred)
 
     def _apply_matrix(self, x: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
