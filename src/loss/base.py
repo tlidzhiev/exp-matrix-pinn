@@ -1,0 +1,17 @@
+import torch.nn as nn
+
+
+class BaseLoss(nn.Module):
+    """
+    Base class for all loss functions.
+
+    Attributes
+    ----------
+    loss_names : list[str]
+        Names of all loss components.
+    loss_weight_names : list[str]
+        Names of all loss weight components.
+    """
+
+    loss_names: list[str]
+    loss_weight_names: list[str]

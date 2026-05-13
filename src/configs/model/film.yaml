@@ -1,0 +1,13 @@
+_target_: src.model.pinn.PINN
+n: ${dataset.n}
+k: ${dataset.k}
+t_domain: ${dataset.t_domain}
+solver_name: film
+solver_params:
+  hidden_dim: 32
+  num_xu_blocks: 1
+  num_fusion_blocks: 3
+  kernel_size: 3
+  activation: silu
+  init_mode: normal
+hard_constrained: false
