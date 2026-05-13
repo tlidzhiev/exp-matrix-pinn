@@ -28,3 +28,5 @@ trainer:
   max_grad_norm: null
   checkpoint_dir: ${writer.log_dir}/checkpoints
   seed: 0
+  ema:
+    decay: 0.999
