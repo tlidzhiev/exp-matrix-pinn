@@ -41,6 +41,7 @@ def main(cfg: DictConfig) -> None:
     dataloaders, batch_transforms = get_dataloaders(cfg, device)
 
     model = instantiate(cfg.model).to(device)
+    model = torch.compile(model, mode='reduce-overhead')
     logger.info(f'Model:\n{model}')
     optimizer = instantiate(
         cfg.optimizer,
@@ -52,6 +53,7 @@ def main(cfg: DictConfig) -> None:
     logger.info(f'LR Scheduler: {lr_scheduler}')
 
     criterion = instantiate(cfg.criterion).to(device)
+    criterion = torch.compile(criterion, mode='reduce-overhead')
     logger.info(f'Criterion: {criterion}')
     metrics = instantiate(cfg.metrics)
     logger.info(f'Metrics: {metrics}')
