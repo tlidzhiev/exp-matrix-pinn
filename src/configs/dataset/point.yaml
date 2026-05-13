@@ -7,7 +7,7 @@ train:
   _target_: src.dataset.pinn_sampler.PointBatchSampler
   n: ${dataset.n}
   k: ${dataset.k}
-  batch_size: 64
+  batch_size: 128
   t_domain: ${dataset.t_domain}
   trunc_bounds: ${dataset.trunc_bounds}
   resample_step: null
