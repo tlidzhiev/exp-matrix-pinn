@@ -7,6 +7,7 @@ import torch.nn as nn
 class FourierFeatures(nn.Module):
     def __init__(self, input_dim: int, num_features: int, sigma: float = 1.0) -> None:
         super().__init__()
+        self.input_dim = input_dim
         self.num_features = num_features
         self.sigma = sigma
         B = torch.randn(num_features, input_dim) * sigma
@@ -17,7 +18,7 @@ class FourierFeatures(nn.Module):
         return 2 * self.num_features
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        proj = 2 * math.pi * x @ self.B.T  # ty:ignore[unsupported-operator]
+        proj = 2 * math.pi * x @ self.B.T
         return torch.cat([torch.cos(proj), torch.sin(proj)], dim=-1)
 
     def extra_repr(self) -> str:
