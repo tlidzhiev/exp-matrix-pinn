@@ -1,0 +1,6 @@
+_target_: src.loss.pinn.TrajectoryBatchPINNLoss
+n: ${dataset.n}
+k: ${dataset.k}
+lambda_ode: 1.0
+num_chunks: null
+eps_causal: 1.0

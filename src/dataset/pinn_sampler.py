@@ -83,7 +83,7 @@ class _BasePINNSampler(torch.utils.data.IterableDataset):
             )
             if need_resample:
                 cached_batch = self._sample_batch(self.rng)
-            yield cached_batch  # ty:ignore[invalid-yield]
+            yield cached_batch
             step += 1
 
 
@@ -93,6 +93,23 @@ class PointBatchSampler(_BasePINNSampler):
         num_vals = self.rows.shape[0]
 
         t = torch.empty(self.batch_size, 1, dtype=torch.float32).uniform_(
+            t_min, t_max, generator=rng
+        )
+        vals, u0 = _sample_x_u0(self.batch_size, self.n, num_vals, self.trunc_bounds, rng)
+        x = _vals_to_matrix(vals, self.n, self.k, self.rows, self.cols)
+        return {'u0': u0, 't': t, 'x': x}
+
+
+class TrajectoryBatchSampler(_BasePINNSampler):
+    def __init__(self, *args, num_time_points: int = 128, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.num_time_points = num_time_points
+
+    def _sample_batch(self, rng: torch.Generator) -> dict[str, torch.Tensor]:
+        t_min, t_max = self.t_domain
+        num_vals = self.rows.shape[0]
+
+        t = torch.empty(self.num_time_points, 1, dtype=torch.float32).uniform_(
             t_min, t_max, generator=rng
         )
         vals, u0 = _sample_x_u0(self.batch_size, self.n, num_vals, self.trunc_bounds, rng)

@@ -81,3 +81,27 @@ class PointBatchPINNLoss(BasePINNLoss):
         cumsum_prev = torch.cat([t.new_zeros(1), L_bc[:-1].cumsum(dim=0)], dim=0).detach()
         weights = torch.exp(-self.eps_causal * cumsum_prev)
         return (weights * L_bc).mean()
+
+
+class TrajectoryBatchPINNLoss(BasePINNLoss):
+    def _loss_ode(
+        self, t: torch.Tensor, u0: torch.Tensor, x: torch.Tensor, model: nn.Module
+    ) -> torch.Tensor:
+        B, T = x.shape[0], t.shape[0]
+
+        t_sorted = t.squeeze(1).sort().values.unsqueeze(1)
+        t_exp = t_sorted.unsqueeze(0).expand(B, T, 1).reshape(B * T, 1)
+        x_exp = x.unsqueeze(1).expand(B, T, -1, -1).reshape(B * T, *x.shape[1:])
+        u0_exp = u0.unsqueeze(1).expand(B, T, -1).reshape(B * T, -1)
+
+        pde_term = self._ode_residual(t_exp, u0_exp, x_exp, model).reshape(B, T, -1)
+
+        if self.num_chunks is None:
+            return (pde_term**2).mean()
+
+        C = self.num_chunks
+        pde_term = pde_term.reshape(B, C, T // C, -1)
+        L_bc = (pde_term**2).mean(dim=[2, 3])
+        cumsum_prev = torch.cat([t.new_zeros(B, 1), L_bc[:, :-1].cumsum(dim=1)], dim=1).detach()
+        weights = torch.exp(-self.eps_causal * cumsum_prev)
+        return (weights * L_bc).mean()

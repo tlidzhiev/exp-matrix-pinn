@@ -1,0 +1,24 @@
+n: 32
+k: 1
+t_domain: [0.0, 1.0]
+trunc_bounds: [-2.0, 2.0]
+
+train:
+  _target_: src.dataset.pinn_sampler.TrajectoryBatchSampler
+  n: ${dataset.n}
+  k: ${dataset.k}
+  batch_size: 32
+  num_time_points: 128
+  t_domain: ${dataset.t_domain}
+  trunc_bounds: ${dataset.trunc_bounds}
+  resample_step: null
+  seed: 42
+
+test:
+  _target_: src.dataset.supervised_dataset.SparseExpMatrixDataset
+  n: ${dataset.n}
+  k: ${dataset.k}
+  split: test
+  t_domain: ${dataset.t_domain}
+  trunc_bounds: ${dataset.trunc_bounds}
+  seed: 24
