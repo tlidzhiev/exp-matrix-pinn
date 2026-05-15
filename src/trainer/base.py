@@ -264,7 +264,7 @@ class BaseTrainer:
             # log current results
             if batch_idx > 0 and batch_idx % self.log_step == 0:
                 self.writer.set_step((epoch - 1) * self.epoch_len + batch_idx)
-                self.writer.add_scalar('lr', self.lr_scheduler.get_last_lr()[0])  # ty:ignore[invalid-argument-type]
+                self.writer.add_scalar('lr', self.lr_scheduler.get_last_lr()[0])
                 self._log_scalars(self.train_metric_tracker)
                 self._log_batch(batch_idx, batch, epoch)
                 # we don't want to reset train metrics at the start of every epoch

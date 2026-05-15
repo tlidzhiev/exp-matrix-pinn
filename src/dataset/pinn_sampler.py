@@ -92,10 +92,9 @@ class PointBatchSampler(_BasePINNSampler):
         t_min, t_max = self.t_domain
         num_vals = self.rows.shape[0]
 
-        t0 = torch.full((self.batch_size, 1), t_min, dtype=torch.float32)
         t = torch.empty(self.batch_size, 1, dtype=torch.float32).uniform_(
             t_min, t_max, generator=rng
         )
         vals, u0 = _sample_x_u0(self.batch_size, self.n, num_vals, self.trunc_bounds, rng)
         x = _vals_to_matrix(vals, self.n, self.k, self.rows, self.cols)
-        return {'t0': t0, 'u0': u0, 't': t, 'x': x}
+        return {'u0': u0, 't': t, 'x': x}

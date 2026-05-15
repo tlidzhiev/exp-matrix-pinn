@@ -14,11 +14,11 @@ class _CosineSimilarityMetric(Metric):
     def update(self, preds: torch.Tensor, target: torch.Tensor) -> None:
         B, _, _ = target.shape
         cos_sim = F.cosine_similarity(target, preds, dim=-1)
-        self.sum_cos_sim += cos_sim.mean(dim=1).sum()  # ty:ignore[unsupported-operator]
-        self.total_samples += B  # ty:ignore[unsupported-operator]
+        self.sum_cos_sim += cos_sim.mean(dim=1).sum()
+        self.total_samples += B
 
     def compute(self) -> torch.Tensor:
-        return self.sum_cos_sim / self.total_samples  # ty:ignore[unsupported-operator]
+        return self.sum_cos_sim / self.total_samples
 
 
 class CosineSimilarityMetric(BaseMetric):

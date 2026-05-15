@@ -10,4 +10,3 @@ solver_params:
   kernel_size: 3
   activation: silu
   init_mode: normal
-hard_constrained: true

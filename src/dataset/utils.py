@@ -1,5 +1,5 @@
-from collections.abc import Generator
 from itertools import repeat
+from typing import Generator
 
 import torch.nn as nn
 from hydra.utils import instantiate

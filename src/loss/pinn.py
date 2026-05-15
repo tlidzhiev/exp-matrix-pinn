@@ -10,58 +10,38 @@ class BasePINNLoss(BaseLoss):
         self,
         n: int,
         k: int,
-        lambda_pde: float = 1.0,
-        lambda_ic: float = 1.0,
-        hard: bool = False,
+        lambda_ode: float = 1.0,
+        num_chunks: int | None = None,
+        eps_causal: float = 1.0,
     ) -> None:
         super().__init__()
         self.n, self.k = n, k
-        self.lambda_pde = lambda_pde
-        self.lambda_ic = lambda_ic
-        self.hard = hard
-        if hard:
-            self.loss_names = ['loss', 'loss_pde']
-            self.loss_weight_names = ['lambda_pde']
-        else:
-            self.loss_names = ['loss', 'loss_ic', 'loss_pde']
-            self.loss_weight_names = ['lambda_ic', 'lambda_pde']
+        self.lambda_ode = lambda_ode
+        self.loss_names = ['loss', 'loss_ode']
+        self.loss_weight_names = ['lambda_ode']
+
+        self.num_chunks = num_chunks
+        self.eps_causal = eps_causal
 
     def forward(
         self,
         model: nn.Module,
-        t0: torch.Tensor,
-        u0: torch.Tensor,
         t: torch.Tensor,
         x: torch.Tensor,
+        u0: torch.Tensor,
         **kwargs,
     ) -> dict[str, torch.Tensor | float]:
-        loss_pde = self._loss_pde(t=t, u0=u0, x=x, model=model)
+        loss_pde = self.lambda_ode * self._loss_ode(t=t, u0=u0, x=x, model=model)
+        return {'loss': loss_pde, 'loss_ode': loss_pde, 'lambda_ode': self.lambda_ode}
 
-        if self.hard:
-            return {'loss': loss_pde, 'loss_pde': loss_pde, 'lambda_pde': self.lambda_pde}
-
-        loss_ic = self._loss_ic(t0=t0, u0=u0, x=x, model=model)
-        loss = self.lambda_ic * loss_ic + self.lambda_pde * loss_pde
-        return {
-            'loss': loss,
-            'loss_pde': loss_pde,
-            'loss_ic': loss_ic,
-            'lambda_ic': self.lambda_ic,
-            'lambda_pde': self.lambda_pde,
-        }
-
-    def _loss_pde(
+    def _loss_ode(
         self, t: torch.Tensor, u0: torch.Tensor, x: torch.Tensor, model: nn.Module
     ) -> torch.Tensor:
-        raise NotImplementedError(f'{type(self).__name__} must implemenent _loss_pde method.')
+        raise NotImplementedError(f'{type(self).__name__} must implemenent _loss_ode method.')
 
-    def _loss_ic(
-        self, t0: torch.Tensor, u0: torch.Tensor, x: torch.Tensor, model: nn.Module
+    def _ode_residual(
+        self, t: torch.Tensor, u0: torch.Tensor, x: torch.Tensor, model: nn.Module
     ) -> torch.Tensor:
-        u0_pred = model(t=t0, x=x, u0=u0)['ut']
-        return F.mse_loss(u0_pred, u0)
-
-    def _pde_residual(self, t, u0, x, model):
         eps = 1e-3
         ut_plus = model(t=t + eps, x=x, u0=u0)['ut']
         ut_minus = model(t=t - eps, x=x, u0=u0)['ut']
@@ -78,14 +58,26 @@ class BasePINNLoss(BaseLoss):
         return result
 
     def extra_repr(self) -> str:
-        s = f'n={self.n}, k={self.k}, lambda_pde={self.lambda_pde}'
-        if not self.hard:
-            s += f', lambda_ic={self.lambda_ic}'
+        s = f'n={self.n}, k={self.k}, lambda_ode={self.lambda_ode}'
+        if self.num_chunks:
+            s += f', num_chunks={self.num_chunks}, eps_causal={self.eps_causal}'
         return s
 
 
 class PointBatchPINNLoss(BasePINNLoss):
-    def _loss_pde(
+    def _loss_ode(
         self, t: torch.Tensor, u0: torch.Tensor, x: torch.Tensor, model: nn.Module
     ) -> torch.Tensor:
-        return (self._pde_residual(t, u0, x, model) ** 2).mean()
+        B = x.shape[0]
+        pde_term = self._ode_residual(t, u0, x, model)
+
+        if self.num_chunks is None:
+            return (pde_term**2).mean()
+
+        C = self.num_chunks
+        sort_idx = t.view(B).argsort()
+        pde_term = pde_term[sort_idx].reshape(C, B // C, -1)
+        L_bc = (pde_term**2).mean(dim=[1, 2])
+        cumsum_prev = torch.cat([t.new_zeros(1), L_bc[:-1].cumsum(dim=0)], dim=0).detach()
+        weights = torch.exp(-self.eps_causal * cumsum_prev)
+        return (weights * L_bc).mean()

@@ -1,5 +1,0 @@
-_target_: src.loss.pinn.PointBatchPINNLoss
-n: ${dataset.n}
-k: ${dataset.k}
-lambda_pde: 1.0
-hard: true

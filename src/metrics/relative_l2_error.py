@@ -17,10 +17,10 @@ class _RelativeL2ErrorMetric(Metric):
         u0_norm = torch.linalg.vector_norm(u0, dim=-1, keepdim=True)
         rel_err = diff_norm / (u0_norm + self.eps)
         self.sum_rel_errors += rel_err.mean(dim=1).sum()
-        self.total_samples += B  # ty:ignore[unsupported-operator]
+        self.total_samples += B
 
     def compute(self) -> torch.Tensor:
-        return self.sum_rel_errors / self.total_samples  # ty:ignore[unsupported-operator]
+        return self.sum_rel_errors / self.total_samples
 
 
 class RelativeL2ErrorMetric(BaseMetric):
