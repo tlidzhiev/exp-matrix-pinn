@@ -35,8 +35,6 @@ class Baseline(nn.Module):
             nn.Linear(t_input_dim, hidden_dim),
             get_activation(activation),
             nn.Linear(hidden_dim, hidden_dim),
-            get_activation(activation),
-            nn.Linear(hidden_dim, hidden_dim),
         )
 
         xu_layers = []
