@@ -12,6 +12,7 @@ train:
   t_domain: ${dataset.t_domain}
   trunc_bounds: ${dataset.trunc_bounds}
   resample_step: null
+  curriculum_steps: null
   seed: 42
 
 test:

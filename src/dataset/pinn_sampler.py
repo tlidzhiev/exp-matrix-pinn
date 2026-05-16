@@ -59,6 +59,7 @@ class _BasePINNSampler(torch.utils.data.IterableDataset):
         t_domain: tuple[float, float] = (0.0, 1.0),
         trunc_bounds: tuple[float, float] = (-2.0, 2.0),
         resample_step: int | None = None,
+        curriculum_steps: int | None = None,
         seed: int = 42,
     ) -> None:
         self.n = n
@@ -67,9 +68,19 @@ class _BasePINNSampler(torch.utils.data.IterableDataset):
         self.t_domain = t_domain
         self.trunc_bounds = trunc_bounds
         self.resample_step = resample_step
+        self.curriculum_steps = curriculum_steps
         self.seed = seed
         self.rows, self.cols = _sparsity_pattern(n, k)
         self.rng = torch.Generator().manual_seed(seed)
+        self._global_step = 0
+
+    @property
+    def current_t_max(self) -> float:
+        t_min, t_max = self.t_domain
+        if self.curriculum_steps is None:
+            return t_max
+        progress = min((self._global_step + 1) / self.curriculum_steps, 1.0)
+        return t_min + (t_max - t_min) * progress
 
     def _sample_batch(self, rng: torch.Generator) -> dict[str, torch.Tensor]:
         raise NotImplementedError(f'{type(self).__name__} must implement _sample_batch method')
@@ -85,11 +96,13 @@ class _BasePINNSampler(torch.utils.data.IterableDataset):
                 cached_batch = self._sample_batch(self.rng)
             yield cached_batch
             step += 1
+            self._global_step += 1
 
 
 class PointBatchSampler(_BasePINNSampler):
     def _sample_batch(self, rng: torch.Generator) -> dict[str, torch.Tensor]:
-        t_min, t_max = self.t_domain
+        t_min = self.t_domain[0]
+        t_max = self.current_t_max
         num_vals = self.rows.shape[0]
 
         t = torch.empty(self.batch_size, 1, dtype=torch.float32).uniform_(
@@ -106,7 +119,8 @@ class TrajectoryBatchSampler(_BasePINNSampler):
         self.num_time_points = num_time_points
 
     def _sample_batch(self, rng: torch.Generator) -> dict[str, torch.Tensor]:
-        t_min, t_max = self.t_domain
+        t_min = self.t_domain[0]
+        t_max = self.current_t_max
         num_vals = self.rows.shape[0]
 
         t = torch.empty(self.num_time_points, 1, dtype=torch.float32).uniform_(
