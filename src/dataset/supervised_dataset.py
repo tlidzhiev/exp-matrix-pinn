@@ -72,7 +72,7 @@ class SparseExpMatrixDataset(BaseDataset):
         self.seed = seed
 
         if root is None:
-            root = get_root() / 'data' / f'ode-n={n}-k={k}' / split
+            root = get_root() / 'data' / f'ode-n={n}-k={k}-t={t_domain[0]},{t_domain[1]}' / split
         else:
             root = Path(root)
 
@@ -100,7 +100,7 @@ class SparseExpMatrixDataset(BaseDataset):
 
         index = []
         print(
-            f'Generating {self.num_samples} ODE samples (n={self.n}, k={self.k}, num_time_points={self.num_time_points})...'
+            f'Generating {self.num_samples} ODE samples (n={self.n}, k={self.k}, t_domain={self.t_domain}, num_time_points={self.num_time_points})...'
         )
         for i in tqdm(range(self.num_samples)):
             vals = torch.nn.init.trunc_normal_(

@@ -9,10 +9,11 @@ import torch
 def plot_trajectories(
     ut: torch.Tensor,
     ut_pred: torch.Tensor,
+    t: torch.Tensor,
     n_dims: int = 3,
 ) -> np.ndarray:
     """
-    Plot target vs predicted trajectories for fixed samples and first n_dims coordinates.
+    Plot target vs predicted trajectories for fixed samples and first/last n_dims coordinates.
 
     Parameters
     ----------
@@ -20,8 +21,10 @@ def plot_trajectories(
         Ground truth trajectories, shape (B, T, n).
     ut_pred : torch.Tensor
         Predicted trajectories, shape (B, T, n).
+    t : torch.Tensor
+        Time grid, shape (B, T).
     n_dims : int
-        Number of dimensions to plot.
+        Number of first and last dimensions to plot.
 
     Returns
     -------
@@ -30,23 +33,33 @@ def plot_trajectories(
     """
     B, T, n = ut.shape
     n_dims = min(n_dims, n)
+    first = list(range(n_dims))
+    last = list(range(n - n_dims, n))
+    seen: set[int] = set()
+    dims = []
+    for d in first + last:
+        if d not in seen:
+            seen.add(d)
+            dims.append(d)
     K = min(8, B)
     ut_np = ut[:K, :].cpu().float().numpy()
     ut_pred_np = ut_pred[:K, :].cpu().float().numpy()
+    t_np = t[:K].cpu().float().numpy()
 
-    fig, axes = plt.subplots(K, n_dims, figsize=(4 * n_dims, 3 * K), squeeze=False)
+    fig, axes = plt.subplots(K, len(dims), figsize=(4 * len(dims), 3 * K), squeeze=False)
 
     for i in range(K):
-        for j in range(n_dims):
-            ax = axes[i, j]
-            ax.plot(ut_np[i, :, j], label='target', linewidth=1.5)
-            ax.plot(ut_pred_np[i, :, j], label='pred', linewidth=1.5, linestyle='--')
+        for col, j in enumerate(dims):
+            ax = axes[i, col]
+            ax.plot(t_np[i], ut_np[i, :, j], label='target', linewidth=1.5)
+            ax.plot(t_np[i], ut_pred_np[i, :, j], label='pred', linewidth=1.5, linestyle='--')
             ax.set_title(f'sample {i}, coord {j}')
-            if i == 0 and j == 0:
+            if i == 0 and col == 0:
                 ax.legend(fontsize=8)
             ax.tick_params(labelsize=7)
 
     fig.tight_layout()
+    plt.show()
 
     buf = io.BytesIO()
     fig.savefig(buf, format='png', dpi=100)
