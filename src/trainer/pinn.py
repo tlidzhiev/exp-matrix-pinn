@@ -69,7 +69,6 @@ class PINNTrainer(BaseTrainer):
                 metric_tracker.update(loss_weight_name, batch[loss_weight_name])
         else:
             B, num_t, n = batch['ut'].shape
-            print(batch['t'].shape)
             t_flat = batch['t'].reshape(B * num_t, 1)
             x_flat = batch['x'].repeat_interleave(num_t, dim=0)
             u0_flat = batch['u0'].repeat_interleave(num_t, dim=0)
@@ -102,6 +101,5 @@ class PINNTrainer(BaseTrainer):
             Current epoch number.
         """
         if not self.is_train:
-            print(batch['t'].shape)
             image = plot_trajectories(batch['ut'], batch['ut_pred'], batch['t'])
             self.writer.add_image('trajectories', image)
